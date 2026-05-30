@@ -28,6 +28,7 @@ interface Appointment {
   isFollowUp: boolean;
   doctor: {
     id: string;
+    clinicAddress: string | null;
     user: { name: string; phone: string | null };
     specialty: { name: string; icon: string | null };
   };
@@ -153,12 +154,18 @@ export default function AppointmentDetailClient({ appointment, currentRole, curr
               <span className="text-slate-500">Bác sĩ</span>
               <p className="font-medium mt-0.5">{appointment.doctor.user.name}</p>
             </div>
-            <div>
+             <div>
               <span className="text-slate-500">Chuyên khoa</span>
               <p className="font-medium mt-0.5">
                 {appointment.doctor.specialty.icon} {appointment.doctor.specialty.name}
               </p>
             </div>
+            {appointment.doctor.clinicAddress && (
+              <div className="sm:col-span-2">
+                <span className="text-slate-500">Địa điểm khám / Phòng khám</span>
+                <p className="font-medium mt-0.5 text-slate-700">📍 {appointment.doctor.clinicAddress}</p>
+              </div>
+            )}
             <div>
               <span className="text-slate-500">Ngày khám</span>
               <p className="font-medium mt-0.5">{formatDate(appointment.appointmentDate)}</p>
@@ -210,7 +217,7 @@ export default function AppointmentDetailClient({ appointment, currentRole, curr
               )}
             </div>
 
-            {appointment.payment.status === "UNPAID" && appointment.status !== "CANCELLED" && (
+            {appointment.payment.status === "UNPAID" && ["PENDING", "CONFIRMED", "COMPLETED"].includes(appointment.status) && (
               <Link
                 href={`/patient/payment/${appointment.id}`}
                 className="btn-primary inline-flex items-center gap-2 mt-4 text-sm"
@@ -300,7 +307,7 @@ export default function AppointmentDetailClient({ appointment, currentRole, curr
         )}
 
         {/* Re-book */}
-        {appointment.status === "COMPLETED" && (
+        {(appointment.status === "COMPLETED" || appointment.status === "NO_SHOW") && (
           <Link
             href={`/patient/appointments/book/${appointment.doctor.id}`}
             className="card p-4 flex items-center gap-3 hover:border-cyan-200 transition-colors"

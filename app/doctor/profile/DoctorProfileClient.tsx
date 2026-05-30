@@ -26,6 +26,7 @@ interface DoctorProfile {
   education: string | null;
   bio: string | null;
   consultingFee: string; // Decimal from prisma serializes as string
+  clinicAddress: string | null;
   specialty: Specialty;
 }
 
@@ -64,6 +65,7 @@ export default function DoctorProfileClient({ user }: { user: UserData }) {
     experience: doctorProfile?.experience || 0,
     bio: doctorProfile?.bio || "",
     consultingFee: doctorProfile?.consultingFee || "0",
+    clinicAddress: doctorProfile?.clinicAddress || "",
     // Password change
     currentPassword: "",
     newPassword: "",
@@ -143,6 +145,7 @@ export default function DoctorProfileClient({ user }: { user: UserData }) {
             education: formData.education,
             experience: formData.experience,
             consultingFee: formData.consultingFee,
+            clinicAddress: formData.clinicAddress,
           }),
         });
 
@@ -326,18 +329,6 @@ export default function DoctorProfileClient({ user }: { user: UserData }) {
                       <option value="OTHER">Khác</option>
                     </select>
                   </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="label" htmlFor="address">Địa chỉ phòng khám</label>
-                    <input
-                      id="address"
-                      name="address"
-                      type="text"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className="input-field"
-                    />
-                  </div>
                 </div>
               </div>
             )}
@@ -368,6 +359,19 @@ export default function DoctorProfileClient({ user }: { user: UserData }) {
                       min={0}
                       step={10000}
                       value={formData.consultingFee}
+                      onChange={handleInputChange}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="label" htmlFor="clinicAddress">Địa chỉ phòng khám (Nơi bệnh nhân đến khám)</label>
+                    <input
+                      id="clinicAddress"
+                      name="clinicAddress"
+                      type="text"
+                      placeholder="VD: Phòng khám số 12, Tầng 2, MedBook Ba Tháng Hai, Quận 10, TP. HCM..."
+                      value={formData.clinicAddress}
                       onChange={handleInputChange}
                       className="input-field"
                     />

@@ -186,6 +186,7 @@ export default function AdminAppointmentsClient({
             <option value="COMPLETED">Đã hoàn thành</option>
             <option value="CANCELLED">Đã hủy</option>
             <option value="EXPIRED">Đã hết hạn</option>
+            <option value="NO_SHOW">Bệnh nhân không đến</option>
           </select>
         </div>
 
@@ -313,7 +314,7 @@ export default function AdminAppointmentsClient({
                         >
                           <FileText className="w-3.5 h-3.5" /> Chi tiết
                         </button>
-                        {appt.status !== "CANCELLED" && appt.status !== "COMPLETED" && (
+                        {appt.status !== "CANCELLED" && appt.status !== "COMPLETED" && appt.status !== "NO_SHOW" && appt.status !== "EXPIRED" && (
                           <button
                             onClick={() => setSelectedApptId(appt.id)}
                             className="btn-danger p-1.5 px-3 text-xs inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600"
@@ -540,6 +541,12 @@ export default function AdminAppointmentsClient({
                         <p className="text-slate-400 italic mt-2">Bác sĩ không kê đơn thuốc.</p>
                       )}
                     </div>
+                  ) : apptDetails.status === "NO_SHOW" ? (
+                    <p className="text-red-500 italic text-center py-4">Bệnh nhân vắng mặt (Không đến khám).</p>
+                  ) : apptDetails.status === "CANCELLED" ? (
+                    <p className="text-slate-400 italic text-center py-4">Lịch hẹn đã bị hủy.</p>
+                  ) : apptDetails.status === "EXPIRED" ? (
+                    <p className="text-slate-400 italic text-center py-4">Lịch hẹn đã hết hạn chờ phê duyệt.</p>
                   ) : apptDetails.status === "COMPLETED" ? (
                     <p className="text-slate-400 italic text-center py-4">Chưa cập nhật thông tin bệnh án.</p>
                   ) : (

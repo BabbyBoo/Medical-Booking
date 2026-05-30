@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       consultingFee,
       education,
       bio,
+      clinicAddress,
     } = body;
 
     // Validation
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
           consultingFee: consultingFee ? parseFloat(consultingFee) : 0,
           education: education?.trim() || null,
           bio: bio?.trim() || null,
+          clinicAddress: clinicAddress?.trim() || null,
           isVerified: true, // Default to true when created by admin
           isActive: true,
         },

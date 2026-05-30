@@ -25,6 +25,38 @@ const DAYS_OF_WEEK: DayOfWeek[] = [
   "SUNDAY",
 ];
 
+// Generate 30-minute intervals from 07:00 to 22:00
+const TIME_OPTIONS: string[] = [];
+for (let h = 7; h <= 22; h++) {
+  const hStr = h.toString().padStart(2, "0");
+  TIME_OPTIONS.push(`${hStr}:00`);
+  if (h < 22) {
+    TIME_OPTIONS.push(`${hStr}:30`);
+  }
+}
+
+const START_TIME_OPTIONS = TIME_OPTIONS.slice(0, -1); // 07:00 to 21:30
+const END_TIME_OPTIONS = TIME_OPTIONS.slice(1); // 07:30 to 22:00
+
+const normalizeTime = (timeStr: string | undefined, defaultTime: string): string => {
+  if (!timeStr) return defaultTime;
+  const [hStr, mStr] = timeStr.split(":");
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return defaultTime;
+
+  let totalMinutes = h * 60 + m;
+  if (totalMinutes < 7 * 60) totalMinutes = 7 * 60;
+  if (totalMinutes > 22 * 60) totalMinutes = 22 * 60;
+
+  // Round to nearest 30 minutes
+  const roundedMinutes = Math.round(totalMinutes / 30) * 30;
+  
+  const roundedH = Math.floor(roundedMinutes / 60);
+  const roundedM = roundedMinutes % 60;
+  return `${roundedH.toString().padStart(2, "0")}:${roundedM.toString().padStart(2, "0")}`;
+};
+
 export default function ScheduleClient({
   doctorId,
   initialSchedules,
@@ -42,8 +74,8 @@ export default function ScheduleClient({
       const dbItem = initialSchedules.find((s) => s.dayOfWeek === day);
       return {
         dayOfWeek: day,
-        startTime: dbItem?.startTime || "08:00",
-        endTime: dbItem?.endTime || "17:00",
+        startTime: normalizeTime(dbItem?.startTime, "08:00"),
+        endTime: normalizeTime(dbItem?.endTime, "17:00"),
         slotDuration: dbItem?.slotDuration || 30,
         isActive: dbItem ? dbItem.isActive : false,
       };
@@ -58,7 +90,42 @@ export default function ScheduleClient({
 
   const handleFieldChange = (index: number, field: keyof ScheduleItem, value: any) => {
     setSchedules((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const updated = { ...item, [field]: value };
+        
+        // If startTime is changed, ensure endTime is after it
+        if (field === "startTime") {
+          const [startH, startM] = updated.startTime.split(":").map(Number);
+          const [endH, endM] = updated.endTime.split(":").map(Number);
+          const startMin = startH * 60 + startM;
+          const endMin = endH * 60 + endM;
+          
+          if (startMin >= endMin) {
+            const nextMin = startMin + 30;
+            const nextH = Math.min(22, Math.floor(nextMin / 60));
+            const nextM = nextH === 22 ? 0 : nextMin % 60;
+            updated.endTime = `${nextH.toString().padStart(2, "0")}:${nextM.toString().padStart(2, "0")}`;
+          }
+        }
+        
+        // If endTime is changed, ensure startTime is before it
+        if (field === "endTime") {
+          const [startH, startM] = updated.startTime.split(":").map(Number);
+          const [endH, endM] = updated.endTime.split(":").map(Number);
+          const startMin = startH * 60 + startM;
+          const endMin = endH * 60 + endM;
+          
+          if (startMin >= endMin) {
+            const prevMin = endMin - 30;
+            const prevH = Math.max(7, Math.floor(prevMin / 60));
+            const prevM = prevMin < 7 * 60 ? 0 : prevMin % 60;
+            updated.startTime = `${prevH.toString().padStart(2, "0")}:${prevM.toString().padStart(2, "0")}`;
+          }
+        }
+        
+        return updated;
+      })
     );
   };
 
@@ -168,23 +235,33 @@ export default function ScheduleClient({
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-slate-400" />
                     <span className="text-sm text-slate-600">Bắt đầu:</span>
-                    <input
-                      type="time"
+                    <select
                       value={schedule.startTime}
                       onChange={(e) => handleFieldChange(idx, "startTime", e.target.value)}
-                      className="input-field py-1.5 px-3 max-w-[120px] text-sm"
-                    />
+                      className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
+                    >
+                      {START_TIME_OPTIONS.filter((t) => t < schedule.endTime).map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-slate-400" />
                     <span className="text-sm text-slate-600">Kết thúc:</span>
-                    <input
-                      type="time"
+                    <select
                       value={schedule.endTime}
                       onChange={(e) => handleFieldChange(idx, "endTime", e.target.value)}
-                      className="input-field py-1.5 px-3 max-w-[120px] text-sm"
-                    />
+                      className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
+                    >
+                      {END_TIME_OPTIONS.filter((t) => t > schedule.startTime).map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex items-center gap-2">

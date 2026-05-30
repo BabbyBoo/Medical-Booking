@@ -432,6 +432,10 @@ export default function AdminUsersClient({ initialUsers, currentUserId }: Props)
                           </p>
                         </div>
                         <div className="col-span-2">
+                          <span className="text-slate-400">Địa chỉ phòng khám:</span>
+                          <p className="font-medium text-slate-700">{fullUserDetails.doctorProfile.clinicAddress || "Chưa cập nhật"}</p>
+                        </div>
+                        <div className="col-span-2">
                           <span className="text-slate-400">Học văn & Bằng cấp:</span>
                           <p className="font-medium text-slate-700">{fullUserDetails.doctorProfile.education || "Chưa cập nhật"}</p>
                         </div>

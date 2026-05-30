@@ -148,13 +148,16 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="label">Số điện thoại</label>
+                <label className="label">Số điện thoại *</label>
                 <input
                   {...register("phone")}
                   type="tel"
                   placeholder="0912 345 678"
                   className="input-field"
                 />
+                {errors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -6,7 +6,9 @@ export const registerSchema = z
     email: z.string().email("Email không hợp lệ"),
     password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
     confirmPassword: z.string(),
-    phone: z.string().optional(),
+    phone: z.string()
+      .min(1, "Số điện thoại là bắt buộc")
+      .regex(/^0[0-9]{9}$/, "Số điện thoại không hợp lệ (phải gồm 10 chữ số và bắt đầu bằng số 0)"),
     dateOfBirth: z.string().optional(),
     gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   })

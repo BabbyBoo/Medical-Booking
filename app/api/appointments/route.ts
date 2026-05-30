@@ -87,6 +87,13 @@ export async function POST(request: NextRequest) {
 
     const { doctorId, appointmentDate, slotTime, symptoms } = validatedData.data;
 
+    // Validate lunch break: 11:00 to 14:00
+    const [slotH, slotM] = slotTime.split(":").map(Number);
+    const slotMin = slotH * 60 + slotM;
+    if (slotMin >= 11 * 60 && slotMin < 14 * 60) {
+      return apiResponse(false, null, undefined, "Không thể đặt lịch trong thời gian nghỉ trưa (11:00 - 14:00)", 400);
+    }
+
     // Check doctor exists, is active, and is verified
     const doctor = await prisma.doctor.findUnique({
       where: { id: doctorId, isActive: true, isVerified: true },

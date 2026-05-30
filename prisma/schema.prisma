@@ -29,6 +29,7 @@ enum AppointmentStatus {
   CANCELLED
   COMPLETED
   EXPIRED
+  NO_SHOW
 }
 
 enum PaymentStatus {
@@ -127,6 +128,7 @@ model Doctor {
   totalReviews  Int     @default(0)
   isVerified    Boolean @default(false)
   isActive      Boolean @default(true)
+  clinicAddress String?
 
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty    Specialty        @relation(fields: [specialtyId], references: [id])

@@ -53,6 +53,10 @@ async function main() {
       bio: "Chuyên gia tim mạch với 10 năm kinh nghiệm. Đã điều trị cho hơn 5000 bệnh nhân.",
       education: "Đại học Y Hà Nội, Tiến sĩ Y khoa",
       gender: Gender.MALE,
+      clinicAddress: "Phòng khám Tim mạch MedBook, Tầng 2, 123 Đường Trần Duy Hưng, Quận Cầu Giấy, Hà Nội",
+      phone: "0901234567",
+      dateOfBirth: "1980-05-15",
+      address: "12 Phố Chùa Bộc, Quận Đống Đa, Hà Nội",
     },
     {
       name: "BS. Trần Thị Bình",
@@ -63,6 +67,10 @@ async function main() {
       bio: "Bác sĩ chuyên khoa tim mạch, giỏi về can thiệp tim mạch không phẫu thuật.",
       education: "Đại học Y Dược TP.HCM",
       gender: Gender.FEMALE,
+      clinicAddress: "Phòng khám Nội tim mạch, Tòa nhà B, Bệnh viện Bạch Mai, 78 Giải Phóng, Quận Đống Đa, Hà Nội",
+      phone: "0902345678",
+      dateOfBirth: "1985-08-20",
+      address: "45 Đường Nguyễn Chí Thanh, Quận Cầu Giấy, Hà Nội",
     },
     {
       name: "BS. Lê Minh Cường",
@@ -73,6 +81,10 @@ async function main() {
       bio: "Bác sĩ nhi khoa với 15 năm kinh nghiệm, chuyên điều trị trẻ sơ sinh.",
       education: "Bệnh viện Nhi Trung ương, Thạc sĩ Nhi khoa",
       gender: Gender.MALE,
+      clinicAddress: "Phòng khám Nhi khoa Cường Anh, 456 Lạc Long Quân, Quận Tây Hồ, Hà Nội",
+      phone: "0903456789",
+      dateOfBirth: "1975-03-10",
+      address: "78 Phố Thụy Khuê, Quận Tây Hồ, Hà Nội",
     },
     {
       name: "BS. Phạm Thị Dung",
@@ -83,6 +95,10 @@ async function main() {
       bio: "Chuyên gia nội tiêu hóa, giỏi nội soi và điều trị bệnh đại tràng.",
       education: "Đại học Y Hà Nội",
       gender: Gender.FEMALE,
+      clinicAddress: "Phòng khám Tiêu hóa - Gan mật, 789 Nguyễn Chí Thanh, Quận Đống Đa, Hà Nội",
+      phone: "0904567890",
+      dateOfBirth: "1978-11-25",
+      address: "12 Phố Đội Cấn, Quận Ba Đình, Hà Nội",
     },
     {
       name: "BS. Hoàng Văn Minh",
@@ -93,26 +109,40 @@ async function main() {
       bio: "Bác sĩ da liễu, chuyên điều trị mụn, nám và các bệnh về da.",
       education: "Bệnh viện Da liễu Trung ương",
       gender: Gender.MALE,
+      clinicAddress: "Phòng khám Da liễu Bác sĩ Minh, 101 Phố Huế, Quận Hai Bà Trưng, Hà Nội",
+      phone: "0905678901",
+      dateOfBirth: "1988-12-05",
+      address: "56 Phố Bà Triệu, Quận Hai Bà Trưng, Hà Nội",
     },
   ];
 
   for (const d of doctorData) {
     const user = await prisma.user.upsert({
       where: { email: d.email },
-      update: {},
+      update: {
+        phone: d.phone,
+        dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null,
+        address: d.address,
+        gender: d.gender,
+      },
       create: {
         email: d.email,
         password: hash("Doctor@123"),
         name: d.name,
         role: Role.DOCTOR,
         gender: d.gender,
+        phone: d.phone,
+        dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null,
+        address: d.address,
       },
     });
 
     const licenseNum = `BS${Math.floor(10000 + Math.random() * 90000)}`;
     const doctor = await prisma.doctor.upsert({
       where: { userId: user.id },
-      update: {},
+      update: {
+        clinicAddress: d.clinicAddress,
+      },
       create: {
         userId: user.id,
         specialtyId: specialties[d.specialtyIdx].id,
@@ -122,6 +152,7 @@ async function main() {
         isVerified: true,
         bio: d.bio,
         education: d.education,
+        clinicAddress: d.clinicAddress,
         rating: 4.5 + Math.random() * 0.5,
         totalReviews: Math.floor(50 + Math.random() * 100),
       },

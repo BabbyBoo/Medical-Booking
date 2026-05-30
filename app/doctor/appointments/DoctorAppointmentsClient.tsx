@@ -84,6 +84,7 @@ export default function DoctorAppointmentsClient({
             <option value="COMPLETED">Đã hoàn thành</option>
             <option value="CANCELLED">Đã hủy</option>
             <option value="EXPIRED">Đã hết hạn</option>
+            <option value="NO_SHOW">Bệnh nhân không đến</option>
           </select>
         </div>
 

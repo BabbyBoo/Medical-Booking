@@ -11,6 +11,7 @@ import { formatCurrency, getDayOfWeekFromDate, parseLocalDate } from "@/lib/util
 interface Doctor {
   id: string;
   consultingFee: string;
+  clinicAddress: string | null;
   user: { name: string };
   specialty: { name: string; icon: string | null };
   schedules: Array<{ dayOfWeek: string; isActive: boolean }>;
@@ -269,6 +270,12 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
               <span className="text-slate-500">Chuyên khoa</span>
               <span className="font-medium text-slate-900">{doctor.specialty.icon} {doctor.specialty.name}</span>
             </div>
+            {doctor.clinicAddress && (
+              <div className="flex justify-between text-sm gap-4">
+                <span className="text-slate-500 flex-shrink-0">Địa chỉ khám</span>
+                <span className="font-medium text-slate-900 text-right">{doctor.clinicAddress}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Ngày khám</span>
               <span className="font-medium text-slate-900">

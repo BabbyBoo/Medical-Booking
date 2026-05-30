@@ -23,7 +23,7 @@ const STATUS_TABS = [
   { key: "", label: "Tất cả" },
   { key: "PENDING,CONFIRMED", label: "Sắp tới" },
   { key: "COMPLETED", label: "Đã hoàn thành" },
-  { key: "CANCELLED,EXPIRED", label: "Đã hủy" },
+  { key: "CANCELLED,EXPIRED,NO_SHOW", label: "Đã hủy / Vắng mặt" },
 ];
 
 export default function AppointmentsPage() {

@@ -18,6 +18,7 @@ interface Doctor {
   rating: number;
   totalReviews: number;
   isVerified: boolean;
+  clinicAddress: string | null;
   user: { name: string; avatar: string | null };
   specialty: { id: string; name: string; icon: string | null };
   _count: { reviews: number };
@@ -174,6 +175,11 @@ export default function DoctorSearch({ specialties }: Props) {
                     {doctor.specialty.icon} {doctor.specialty.name}
                   </p>
                   <p className="text-xs text-slate-500">{doctor.experience} năm kinh nghiệm</p>
+                  {doctor.clinicAddress && (
+                    <p className="text-xs text-slate-400 mt-1 truncate" title={doctor.clinicAddress}>
+                      📍 {doctor.clinicAddress}
+                    </p>
+                  )}
                 </div>
               </div>
 

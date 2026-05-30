@@ -73,7 +73,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { bio, education, experience, consultingFee } = body;
+    const { bio, education, experience, consultingFee, clinicAddress } = body;
 
     const updated = await prisma.doctor.update({
       where: { id: params.id },
@@ -82,6 +82,7 @@ export async function PUT(
         education,
         experience: experience ? parseInt(experience) : undefined,
         consultingFee: consultingFee ? parseFloat(consultingFee) : undefined,
+        clinicAddress: clinicAddress !== undefined ? clinicAddress : undefined,
       },
     });
 

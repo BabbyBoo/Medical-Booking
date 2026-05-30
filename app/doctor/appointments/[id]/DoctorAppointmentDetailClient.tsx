@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
@@ -98,6 +98,7 @@ export default function DoctorAppointmentDetailClient({
   const [notes, setNotes] = useState("");
   const [followUpDate, setFollowUpDate] = useState("");
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddPrescriptionRow = () => {
     setPrescriptions((prev) => [
@@ -164,7 +165,57 @@ export default function DoctorAppointmentDetailClient({
     }
   };
 
-  const handleSaveMedicalRecord = async (e: React.FormEvent) => {
+  const handleNoShow = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn đánh dấu ca khám này là Bệnh nhân không đến? Thao tác này không thể hoàn tác.")) {
+      return;
+    }
+    setActionLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}/no-show`, {
+        method: "PUT",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg("Đã ghi nhận bệnh nhân không đến thành công!");
+        router.refresh();
+      } else {
+        setErrorMsg(data.error || "Đã xảy ra lỗi");
+      }
+    } catch (err) {
+      setErrorMsg("Lỗi kết nối máy chủ");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!window.confirm("Xác nhận bệnh nhân đã thanh toán tiền mặt tại phòng khám?")) {
+      return;
+    }
+    setActionLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch(`/api/appointments/${appointment.id}/mark-paid`, {
+        method: "PUT",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMsg("Đã xác nhận thanh toán thành công!");
+        router.refresh();
+      } else {
+        setErrorMsg(data.error || "Đã xảy ra lỗi");
+      }
+    } catch (err) {
+      setErrorMsg("Lỗi kết nối máy chủ");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+ const handleSaveMedicalRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!diagnosis.trim()) {
       setErrorMsg("Vui lòng nhập chuẩn đoán của ca bệnh");
@@ -376,6 +427,16 @@ export default function DoctorAppointmentDetailClient({
         </div>
       )}
 
+      {appointment.status === "NO_SHOW" && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-sm flex items-start gap-2.5">
+          <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold">Lịch hẹn vắng mặt: </span>
+            <span>Bệnh nhân đã không đến buổi khám này theo đúng lịch hẹn.</span>
+          </div>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-[1fr_360px] gap-6">
         {/* Main Content Area */}
         <div className="space-y-6">
@@ -456,12 +517,35 @@ export default function DoctorAppointmentDetailClient({
 
                   <div>
                     <label className="label">Ngày hẹn tái khám (nếu có)</label>
-                    <input
-                      type="date"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="input-field"
-                    />
+                    <div
+                      className="relative cursor-pointer"
+                      onClick={() => {
+                        try {
+                          dateInputRef.current?.showPicker();
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                    >
+                      <input
+                        type="text"
+                        readOnly
+                        placeholder="dd/mm/yyyy"
+                        value={followUpDate ? (() => {
+                          const [y, m, d] = followUpDate.split("-");
+                          return `${d}/${m}/${y}`;
+                        })() : ""}
+                        className="input-field pr-10 bg-white cursor-pointer pointer-events-none"
+                      />
+                      <Calendar className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                      <input
+                        ref={dateInputRef}
+                        type="date"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                    </div>
                   </div>
 
                   <div className="sm:col-span-2">
@@ -492,7 +576,7 @@ export default function DoctorAppointmentDetailClient({
                   <div className="space-y-3">
                     {prescriptions.length === 0 ? (
                       <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/40 text-slate-400 text-xs">
-                        Không có đơn thuốc (Bấm "+ Thêm thuốc" nếu cần kê đơn)
+                        Không có đơn thuốc (Bấm + Thêm thuốc nếu cần kê đơn)
                       </div>
                     ) : (
                       prescriptions.map((item, idx) => (
@@ -587,10 +671,23 @@ export default function DoctorAppointmentDetailClient({
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+                <div className="flex justify-between items-center pt-6 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={handleNoShow}
+                    disabled={loading || actionLoading}
+                    className="btn-danger flex items-center gap-2 bg-red-600 hover:bg-red-700"
+                  >
+                    {actionLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-5 h-5" />
+                    )}
+                    Bệnh nhân không đến
+                  </button>
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || actionLoading}
                     className="btn-primary flex items-center gap-2 bg-cyan-600"
                   >
                     {loading ? (
@@ -819,6 +916,25 @@ export default function DoctorAppointmentDetailClient({
                       ? "Đã hoàn tiền"
                       : "Chưa thanh toán"}
                   </span>
+                </div>
+              )}
+              {appointment.payment && appointment.payment.status === "UNPAID" &&
+                ["CONFIRMED", "COMPLETED"].includes(appointment.status) && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={handleMarkPaid}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading ? (
+                      <span className="animate-spin w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    Xác nhận đã thanh toán
+                  </button>
                 </div>
               )}
             </div>

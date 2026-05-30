@@ -5,7 +5,7 @@ CREATE TYPE "Role" AS ENUM ('PATIENT', 'DOCTOR', 'ADMIN');
 CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "AppointmentStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'EXPIRED');
+CREATE TYPE "AppointmentStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'EXPIRED', 'NO_SHOW');
 
 -- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID', 'REFUNDED');
@@ -81,6 +81,7 @@ CREATE TABLE "doctors" (
     "totalReviews" INTEGER NOT NULL DEFAULT 0,
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "clinicAddress" TEXT,
 
     CONSTRAINT "doctors_pkey" PRIMARY KEY ("id")
 );

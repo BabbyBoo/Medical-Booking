@@ -19,6 +19,7 @@ interface Doctor {
   isVerified: boolean;
   bio: string | null;
   education: string | null;
+  clinicAddress: string | null;
   user: { name: string; avatar: string | null; gender: string | null };
   specialty: { name: string; icon: string | null; description: string | null };
   schedules: Array<{
@@ -118,6 +119,12 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
                   {doctor.rating.toFixed(1)} ({doctor._count.reviews} đánh giá)
                 </span>
               </div>
+              {doctor.clinicAddress && (
+                <div className="text-xs text-slate-500 mt-2 flex items-start gap-1">
+                  <span className="flex-shrink-0">📍 Phòng khám:</span>
+                  <span className="font-medium text-slate-700">{doctor.clinicAddress}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -177,6 +184,15 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
                 Học vấn & Chứng chỉ
               </h2>
               <p className="text-slate-600">{doctor.education}</p>
+            </div>
+          )}
+          {doctor.clinicAddress && (
+            <div>
+              <h2 className="font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                <span className="text-cyan-600">📍</span>
+                Địa chỉ phòng khám
+              </h2>
+              <p className="text-slate-600">{doctor.clinicAddress}</p>
             </div>
           )}
           {doctor.specialty.description && (

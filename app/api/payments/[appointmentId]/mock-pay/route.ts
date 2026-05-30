@@ -39,6 +39,10 @@ export async function POST(
       return apiResponse(false, null, undefined, "Lịch hẹn đã được thanh toán", 400);
     }
 
+    if (["CANCELLED", "NO_SHOW", "EXPIRED"].includes(appointment.status)) {
+      return apiResponse(false, null, undefined, "Không thể thanh toán cho lịch hẹn đã hủy, vắng mặt hoặc hết hạn", 400);
+    }
+
     const transactionId = "TXN" + Date.now();
 
     await prisma.payment.update({

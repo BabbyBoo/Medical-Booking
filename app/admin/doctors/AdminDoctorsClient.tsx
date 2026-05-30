@@ -45,6 +45,7 @@ interface Doctor {
   consultingFee: string;
   isVerified: boolean;
   isActive: boolean;
+  clinicAddress: string | null;
   user: User;
   specialty: Specialty;
 }
@@ -90,6 +91,7 @@ export default function AdminDoctorsClient({
     consultingFee: "200000",
     education: "",
     bio: "",
+    clinicAddress: "",
   });
 
   // Specialty Form State
@@ -180,6 +182,7 @@ export default function AdminDoctorsClient({
           consultingFee: "200000",
           education: "",
           bio: "",
+          clinicAddress: "",
         });
         // Trigger page refresh to fetch the new doctor with full relations
         router.refresh();
@@ -401,6 +404,9 @@ export default function AdminDoctorsClient({
                             <div>
                               <div className="font-bold text-slate-900">{doc.user.name}</div>
                               <div className="text-xs text-slate-400">{doc.user.email}</div>
+                              {doc.clinicAddress && (
+                                <div className="text-[11px] text-cyan-600 font-medium mt-0.5">📍 {doc.clinicAddress}</div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -667,6 +673,17 @@ export default function AdminDoctorsClient({
                   value={doctorForm.bio}
                   onChange={(e) => setDoctorForm((p) => ({ ...p, bio: e.target.value }))}
                   className="input-field py-2 text-xs resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="label text-xs">Địa chỉ phòng khám</label>
+                <input
+                  type="text"
+                  placeholder="VD: Phòng khám số 12, Tầng 2, MedBook Ba Tháng Hai..."
+                  value={doctorForm.clinicAddress}
+                  onChange={(e) => setDoctorForm((p) => ({ ...p, clinicAddress: e.target.value }))}
+                  className="input-field py-2 text-xs"
                 />
               </div>
 
