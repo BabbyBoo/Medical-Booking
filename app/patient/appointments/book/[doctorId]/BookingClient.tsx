@@ -21,11 +21,19 @@ interface Props {
   doctor: Doctor;
   initialDate: string;
   initialTime: string;
+  hasActiveAppointment?: boolean;
+  previousAppointmentId?: string;
 }
 
 const STEPS = ["Chọn thời gian", "Triệu chứng", "Xác nhận"];
 
-export default function BookingClient({ doctor, initialDate, initialTime }: Props) {
+export default function BookingClient({
+  doctor,
+  initialDate,
+  initialTime,
+  hasActiveAppointment = false,
+  previousAppointmentId = "",
+}: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(
@@ -38,7 +46,7 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const next7Days = Array.from({ length: 14 }, (_, i) => addDays(new Date(), i));
+  const next7Days = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
 
   const isWorkDay = (date: Date) => {
     const dayOfWeek = getDayOfWeekFromDate(date);
@@ -52,7 +60,18 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
         `/api/doctors/${doctor.id}/available-slots?date=${format(date, "yyyy-MM-dd")}`
       );
       const json = await res.json();
-      setSlots(json.success ? json.data.slots || [] : []);
+      const slotsData = json.success ? json.data.slots || [] : [];
+      setSlots(slotsData);
+
+      // Reset selectedTime if it is no longer available in the newly loaded slots
+      if (selectedTime) {
+        const isStillAvailable = slotsData.some(
+          (s: any) => s.time === selectedTime && s.available
+        );
+        if (!isStillAvailable) {
+          setSelectedTime("");
+        }
+      }
     } catch {
       setSlots([]);
     }
@@ -65,6 +84,15 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
 
   const handleSubmit = async () => {
     if (!selectedDate || !selectedTime) return;
+
+    // Validate slot time is not in the past
+    const slotDateTime = new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}:00+07:00`);
+    if (slotDateTime < new Date()) {
+      setError("Không thể đặt lịch hẹn trong quá khứ. Vui lòng chọn khung giờ khác.");
+      setStep(1);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
 
@@ -77,6 +105,7 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
           appointmentDate: format(selectedDate, "yyyy-MM-dd"),
           slotTime: selectedTime,
           symptoms: symptoms || undefined,
+          previousAppointmentId: previousAppointmentId || undefined,
         }),
       });
 
@@ -141,6 +170,23 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
         </div>
       </div>
 
+      {hasActiveAppointment && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-sm flex flex-col gap-2">
+          <div className="flex items-start gap-2 font-bold text-amber-900">
+            <span>⚠️</span>
+            <span>Không thể đặt lịch hẹn mới</span>
+          </div>
+          <p>
+            Bạn đang có một lịch hẹn ở trạng thái <strong>Chờ duyệt</strong> hoặc <strong>Đã xác nhận</strong> với bác sĩ này. Theo quy định, mỗi bệnh nhân chỉ có thể đặt tối đa 1 lịch hẹn hoạt động với mỗi bác sĩ. Vui lòng hoàn thành buổi khám hiện tại hoặc hủy lịch khám cũ trước khi tiếp tục đặt lịch mới.
+          </p>
+          <div className="mt-2">
+            <Link href="/patient/appointments" className="text-cyan-700 hover:text-cyan-800 underline font-medium text-xs">
+              Quản lý lịch hẹn của tôi &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-red-700 text-sm">
           {error}
@@ -160,13 +206,13 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
             <p className="label">Ngày khám</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
               {next7Days.map((date) => {
-                const isWork = isWorkDay(date);
+                const isWork = isWorkDay(date) && !hasActiveAppointment;
                 const isSelected = selectedDate && isSameDay(date, selectedDate);
                 return (
                   <button
                     key={date.toISOString()}
                     onClick={() => { if (isWork) { setSelectedDate(date); setSelectedTime(""); } }}
-                    disabled={!isWork}
+                    disabled={!isWork || hasActiveAppointment}
                     className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border-2 min-w-[60px] text-xs transition-all ${
                       isSelected ? "bg-cyan-600 text-white border-cyan-600" :
                       isWork ? "bg-white text-slate-700 border-slate-200 hover:border-cyan-400" :
@@ -195,8 +241,8 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
                   {slots.map((slot) => (
                     <button
                       key={slot.time}
-                      onClick={() => slot.available && setSelectedTime(slot.time)}
-                      disabled={!slot.available}
+                      onClick={() => slot.available && !hasActiveAppointment && setSelectedTime(slot.time)}
+                      disabled={!slot.available || hasActiveAppointment}
                       className={`slot-btn ${
                         selectedTime === slot.time ? "selected" : slot.available ? "available" : "booked"
                       }`}
@@ -210,8 +256,19 @@ export default function BookingClient({ doctor, initialDate, initialTime }: Prop
           )}
 
           <button
-            onClick={() => setStep(2)}
-            disabled={!selectedDate || !selectedTime}
+            onClick={() => {
+              if (selectedDate && selectedTime && !hasActiveAppointment) {
+                const slotDateTime = new Date(`${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}:00+07:00`);
+                if (slotDateTime < new Date()) {
+                  setError("Không thể chọn khung giờ đã qua. Vui lòng chọn khung giờ khác.");
+                  setSelectedTime("");
+                  fetchSlots(selectedDate);
+                  return;
+                }
+                setStep(2);
+              }
+            }}
+            disabled={!selectedDate || !selectedTime || hasActiveAppointment}
             className="btn-primary w-full py-3 flex items-center justify-center gap-2"
           >
             Tiếp theo <ChevronRight className="w-4 h-4" />

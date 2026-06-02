@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { apiResponse } from "@/lib/utils";
+import { apiResponse, getDayOfWeekFromDate } from "@/lib/utils";
 import { bookingSchema } from "@/lib/validations";
 
 export const dynamic = "force-dynamic";
@@ -85,13 +85,65 @@ export async function POST(request: NextRequest) {
       return apiResponse(false, null, undefined, validatedData.error.issues[0].message, 400);
     }
 
-    const { doctorId, appointmentDate, slotTime, symptoms } = validatedData.data;
+    const { doctorId, appointmentDate, slotTime, symptoms, previousAppointmentId } = validatedData.data;
 
-    // Validate lunch break: 11:00 to 14:00
-    const [slotH, slotM] = slotTime.split(":").map(Number);
-    const slotMin = slotH * 60 + slotM;
-    if (slotMin >= 11 * 60 && slotMin < 14 * 60) {
-      return apiResponse(false, null, undefined, "Không thể đặt lịch trong thời gian nghỉ trưa (11:00 - 14:00)", 400);
+    // Check if the patient already has an active (PENDING or CONFIRMED) appointment with this doctor
+    const activeAppointment = await prisma.appointment.findFirst({
+      where: {
+        patientId: session.user.patientId!,
+        doctorId,
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+
+    if (activeAppointment) {
+      return apiResponse(
+        false,
+        null,
+        undefined,
+        "Bạn đã có một lịch hẹn chưa hoàn thành với bác sĩ này. Vui lòng hoàn thành hoặc hủy lịch hẹn cũ trước khi đặt lịch mới.",
+        400
+      );
+    }
+
+    // Validate slot time is not in the past (using Vietnam local timezone offset +07:00)
+    const slotDateTime = new Date(`${appointmentDate}T${slotTime}:00+07:00`);
+    if (slotDateTime < new Date()) {
+      return apiResponse(false, null, undefined, "Không thể đặt lịch hẹn trong quá khứ", 400);
+    }
+
+    // Validate booking date is within 7 days
+    const maxBookingDate = new Date();
+    maxBookingDate.setDate(maxBookingDate.getDate() + 7);
+    maxBookingDate.setHours(23, 59, 59, 999);
+    if (slotDateTime > maxBookingDate) {
+      return apiResponse(false, null, undefined, "Chỉ có thể đặt lịch khám trong vòng 7 ngày tới", 400);
+    }
+
+    // Validate that doctor works on this day and the slot is not disabled
+    const date = new Date(appointmentDate);
+    const dayOfWeek = getDayOfWeekFromDate(date, true);
+    const schedule = await prisma.doctorSchedule.findFirst({
+      where: {
+        doctorId,
+        dayOfWeek: dayOfWeek as "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY",
+        isActive: true,
+      },
+    });
+
+    if (!schedule) {
+      return apiResponse(false, null, undefined, "Bác sĩ không có lịch làm việc vào ngày này", 400);
+    }
+
+    if (schedule.disabledSlots) {
+      try {
+        const disabledSlots = JSON.parse(schedule.disabledSlots) as string[];
+        if (disabledSlots.includes(slotTime)) {
+          return apiResponse(false, null, undefined, "Khung giờ này bác sĩ nghỉ hoặc không nhận lịch hẹn", 400);
+        }
+      } catch (err) {
+        console.error("Parse schedule disabledSlots error:", err);
+      }
     }
 
     // Check doctor exists, is active, and is verified
@@ -105,7 +157,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Double-check slot availability
-    const date = new Date(appointmentDate);
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
@@ -140,6 +191,8 @@ export async function POST(request: NextRequest) {
         symptoms,
         status: "PENDING",
         expiredAt,
+        isFollowUp: !!previousAppointmentId,
+        previousAppointmentId: previousAppointmentId || null,
         payment: {
           create: {
             amount: doctor.consultingFee,

@@ -29,88 +29,98 @@ export async function GET(request: NextRequest) {
   const summary: Record<string, any> = {};
 
   try {
-    // --- 1. REMIND CONFIRMED APPOINTMENTS T-24H ---
-    const remind24h = await prisma.appointment.findMany({
+    // Get dates in Vietnam timezone (+07:00)
+    const nowInVN = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayStr = nowInVN.toISOString().split("T")[0]; // "yyyy-MM-dd"
+    
+    const tomorrowInVN = new Date(nowInVN.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = tomorrowInVN.toISOString().split("T")[0];
+
+    // Query appointments for today and tomorrow
+    const appointments = await prisma.appointment.findMany({
       where: {
         status: "CONFIRMED",
         appointmentDate: {
-          gte: new Date(now.getTime() + 23 * 60 * 60 * 1000),
-          lte: new Date(now.getTime() + 25 * 60 * 60 * 1000),
+          in: [
+            new Date(`${todayStr}T00:00:00.000Z`),
+            new Date(`${tomorrowStr}T00:00:00.000Z`),
+          ],
         },
-        reminders: { none: { type: "24H" } },
       },
       include: {
         patient: { include: { user: true } },
         doctor: { include: { user: true } },
+        reminders: true,
       },
     });
 
-    for (const appt of remind24h) {
-      await sendEmail({
-        to: appt.patient.user.email,
-        subject: "Nhắc nhở: Lịch khám bệnh của bạn vào ngày mai ✓",
-        text: `Xin chào ${appt.patient.user.name},\n\nBạn có lịch khám bệnh lúc ${appt.slotTime} ngày mai với BS. ${appt.doctor.user.name}.\nVui lòng đến đúng giờ hẹn.\n\nTrân trọng,\nMedBook.`,
-        html: `<p>Xin chào <strong>${appt.patient.user.name}</strong>,</p>
-               <p>Bạn có lịch khám bệnh lúc <strong>${appt.slotTime} ngày mai</strong> với <strong>BS. ${appt.doctor.user.name}</strong>.</p>
-               <p>Vui lòng đến đúng giờ hẹn tại phòng khám.</p>
-               <p>Trân trọng,<br/>Đội ngũ MedBook.</p>`,
-      });
+    let reminded24hCount = 0;
+    let reminded1hCount = 0;
 
-      await prisma.notification.create({
-        data: {
-          userId: appt.patient.user.id,
-          title: "Nhắc lịch khám ngày mai",
-          message: `Lịch khám lúc ${appt.slotTime} ngày mai với BS. ${appt.doctor.user.name}`,
-          type: "REMINDER",
-        },
-      });
+    for (const appt of appointments) {
+      const dateStr = appt.appointmentDate.toISOString().split("T")[0];
+      const apptDateTime = new Date(`${dateStr}T${appt.slotTime}:00+07:00`);
+      const diffMs = apptDateTime.getTime() - now.getTime();
 
-      await prisma.appointmentReminder.create({
-        data: { appointmentId: appt.id, type: "24H" },
-      });
+      // --- 1. REMIND 24H BEFORE ---
+      const has24hReminder = appt.reminders.some((r) => r.type === "24H");
+      if (diffMs >= 23 * 60 * 60 * 1000 && diffMs <= 25 * 60 * 60 * 1000 && !has24hReminder) {
+        await sendEmail({
+          to: appt.patient.user.email,
+          subject: "Nhắc nhở: Lịch khám bệnh của bạn vào ngày mai ✓",
+          text: `Xin chào ${appt.patient.user.name},\n\nBạn có lịch khám bệnh lúc ${appt.slotTime} ngày mai với BS. ${appt.doctor.user.name}.\nVui lòng đến đúng giờ hẹn.\n\nTrân trọng,\nMedBook.`,
+          html: `<p>Xin chào <strong>${appt.patient.user.name}</strong>,</p>
+                 <p>Bạn có lịch khám bệnh lúc <strong>${appt.slotTime} ngày mai</strong> với <strong>BS. ${appt.doctor.user.name}</strong>.</p>
+                 <p>Vui lòng đến đúng giờ hẹn tại phòng khám.</p>
+                 <p>Trân trọng,<br/>Đội ngũ MedBook.</p>`,
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: appt.patient.user.id,
+            title: "Nhắc lịch khám ngày mai",
+            message: `Lịch khám lúc ${appt.slotTime} ngày mai với BS. ${appt.doctor.user.name}`,
+            type: "REMINDER",
+          },
+        });
+
+        await prisma.appointmentReminder.create({
+          data: { appointmentId: appt.id, type: "24H" },
+        });
+
+        reminded24hCount++;
+      }
+
+      // --- 2. REMIND 1H BEFORE ---
+      const has1hReminder = appt.reminders.some((r) => r.type === "1H");
+      if (diffMs >= 30 * 60 * 1000 && diffMs <= 90 * 60 * 1000 && !has1hReminder) {
+        await sendEmail({
+          to: appt.patient.user.email,
+          subject: "Nhắc nhở: Lịch khám của bạn sắp diễn ra trong 1 giờ tới",
+          text: `Xin chào ${appt.patient.user.name},\n\nLịch khám bệnh của bạn với BS. ${appt.doctor.user.name} sẽ bắt đầu lúc ${appt.slotTime} (trong khoảng 1 giờ nữa).\n\nTrân trọng,\nMedBook.`,
+          html: `<p>Xin chào <strong>${appt.patient.user.name}</strong>,</p>
+                 <p>Lịch khám bệnh của bạn với <strong>BS. ${appt.doctor.user.name}</strong> sẽ diễn ra vào lúc <strong>${appt.slotTime}</strong> (khoảng 1 giờ nữa).</p>
+                 <p>Trân trọng,<br/>Đội ngũ MedBook.</p>`,
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId: appt.patient.user.id,
+            title: "Lịch khám sắp diễn ra",
+            message: `Lịch khám lúc ${appt.slotTime} với BS. ${appt.doctor.user.name} sẽ bắt đầu trong 1 giờ tới.`,
+            type: "REMINDER",
+          },
+        });
+
+        await prisma.appointmentReminder.create({
+          data: { appointmentId: appt.id, type: "1H" },
+        });
+
+        reminded1hCount++;
+      }
     }
-    summary.reminded24hCount = remind24h.length;
-
-    // --- 2. REMIND CONFIRMED APPOINTMENTS T-1H ---
-    const remind1h = await prisma.appointment.findMany({
-      where: {
-        status: "CONFIRMED",
-        appointmentDate: {
-          gte: new Date(now.getTime() + 30 * 60 * 1000),
-          lte: new Date(now.getTime() + 90 * 60 * 1000),
-        },
-        reminders: { none: { type: "1H" } },
-      },
-      include: {
-        patient: { include: { user: true } },
-        doctor: { include: { user: true } },
-      },
-    });
-
-    for (const appt of remind1h) {
-      await sendEmail({
-        to: appt.patient.user.email,
-        subject: "Nhắc nhở: Lịch khám của bạn sắp diễn ra trong 1 giờ tới",
-        text: `Xin chào ${appt.patient.user.name},\n\nLịch khám bệnh của bạn với BS. ${appt.doctor.user.name} sẽ bắt đầu lúc ${appt.slotTime} (trong khoảng 1 giờ nữa).\n\nTrân trọng,\nMedBook.`,
-        html: `<p>Xin chào <strong>${appt.patient.user.name}</strong>,</p>
-               <p>Lịch khám bệnh của bạn với <strong>BS. ${appt.doctor.user.name}</strong> sẽ diễn ra vào lúc <strong>${appt.slotTime}</strong> (khoảng 1 giờ nữa).</p>
-               <p>Trân trọng,<br/>Đội ngũ MedBook.</p>`,
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: appt.patient.user.id,
-          title: "Lịch khám sắp diễn ra",
-          message: `Lịch khám lúc ${appt.slotTime} với BS. ${appt.doctor.user.name} sẽ bắt đầu trong 1 giờ tới.`,
-          type: "REMINDER",
-        },
-      });
-
-      await prisma.appointmentReminder.create({
-        data: { appointmentId: appt.id, type: "1H" },
-      });
-    }
-    summary.reminded1hCount = remind1h.length;
+    summary.reminded24hCount = reminded24hCount;
+    summary.reminded1hCount = reminded1hCount;
 
     // --- 3. AUTO EXPIRE UNCONFIRMED APPOINTMENTS ---
     const expired = await prisma.appointment.findMany({

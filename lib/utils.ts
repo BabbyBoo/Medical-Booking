@@ -86,11 +86,6 @@ export function generateTimeSlots(
   const endMinutes = endH * 60 + endM;
 
   while (currentMinutes < endMinutes) {
-    // Exclude lunch break from 11:00 to 14:00 (11 * 60 to 14 * 60 minutes)
-    if (currentMinutes >= 11 * 60 && currentMinutes < 14 * 60) {
-      currentMinutes += duration;
-      continue;
-    }
     const h = Math.floor(currentMinutes / 60);
     const m = currentMinutes % 60;
     slots.push(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);

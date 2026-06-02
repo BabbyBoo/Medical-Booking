@@ -39,7 +39,7 @@ interface Doctor {
   _count: { reviews: number };
 }
 
-export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
+export default function DoctorProfileClient({ doctor, hasActiveAppointment = false }: { doctor: Doctor; hasActiveAppointment?: boolean }) {
   const [activeTab, setActiveTab] = useState<"info" | "schedule" | "reviews">("info");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [slots, setSlots] = useState<{ time: string; available: boolean }[]>([]);
@@ -135,13 +135,24 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
                 {formatCurrency(parseFloat(doctor.consultingFee))}
               </div>
             </div>
-            <Link
-              href={`/patient/appointments/book/${doctor.id}`}
-              className="btn-primary flex items-center gap-2 py-3 px-6"
-            >
-              <Calendar className="w-4 h-4" />
-              Đặt lịch khám
-            </Link>
+            {hasActiveAppointment ? (
+              <button
+                disabled
+                className="bg-slate-200 text-slate-400 cursor-not-allowed flex items-center gap-2 py-3 px-6 rounded-xl font-medium text-sm border border-slate-300"
+                title="Bạn đã có lịch hẹn chưa hoàn thành với bác sĩ này"
+              >
+                <Calendar className="w-4 h-4" />
+                Đang có lịch hẹn
+              </button>
+            ) : (
+              <Link
+                href={`/patient/appointments/book/${doctor.id}`}
+                className="btn-primary flex items-center gap-2 py-3 px-6"
+              >
+                <Calendar className="w-4 h-4" />
+                Đặt lịch khám
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -206,6 +217,23 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
 
       {activeTab === "schedule" && (
         <div className="space-y-4">
+          {hasActiveAppointment && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-sm flex flex-col gap-2">
+              <div className="flex items-start gap-2 font-bold text-amber-900">
+                <span>⚠️</span>
+                <span>Bạn đang có một lịch hẹn chưa hoàn thành với bác sĩ này</span>
+              </div>
+              <p>
+                Theo quy định của phòng khám, mỗi bệnh nhân chỉ được phép đặt tối đa 1 lịch hẹn hoạt động (Chờ duyệt hoặc Đã xác nhận) với mỗi bác sĩ. Vui lòng hoàn thành buổi khám hiện tại hoặc hủy lịch cũ trước khi đặt lịch mới.
+              </p>
+              <div>
+                <Link href="/patient/appointments" className="text-cyan-700 hover:text-cyan-800 underline font-medium text-xs">
+                  Xem chi tiết lịch hẹn &rarr;
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Date picker */}
           <div className="card p-4">
             <h3 className="font-semibold text-slate-900 mb-3 text-sm">Chọn ngày khám</h3>
@@ -217,7 +245,7 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
                   <button
                     key={date.toISOString()}
                     onClick={() => isWork && setSelectedDate(date)}
-                    disabled={!isWork}
+                    disabled={!isWork || hasActiveAppointment}
                     className={`flex-shrink-0 flex flex-col items-center px-4 py-3 rounded-xl text-sm transition-all border-2 min-w-[72px] ${
                       isSelected
                         ? "bg-cyan-600 text-white border-cyan-600"
@@ -255,12 +283,12 @@ export default function DoctorProfileClient({ doctor }: { doctor: Doctor }) {
                   <Link
                     key={slot.time}
                     href={
-                      slot.available
+                      slot.available && !hasActiveAppointment
                         ? `/patient/appointments/book/${doctor.id}?date=${format(selectedDate, "yyyy-MM-dd")}&time=${slot.time}`
                         : "#"
                     }
-                    className={`slot-btn ${slot.available ? "available" : "booked"}`}
-                    style={{ pointerEvents: slot.available ? "auto" : "none" }}
+                    className={`slot-btn ${slot.available && !hasActiveAppointment ? "available" : "booked"}`}
+                    style={{ pointerEvents: slot.available && !hasActiveAppointment ? "auto" : "none" }}
                   >
                     {slot.time}
                   </Link>

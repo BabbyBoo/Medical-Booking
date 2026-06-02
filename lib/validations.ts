@@ -54,6 +54,7 @@ export const bookingSchema = z.object({
   appointmentDate: z.string(),
   slotTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ không hợp lệ"),
   symptoms: z.string().max(500, "Tối đa 500 ký tự").optional(),
+  previousAppointmentId: z.string().cuid().optional(),
 });
 
 export const cancelSchema = z.object({
@@ -98,8 +99,9 @@ export const doctorScheduleSchema = z.array(
     ]),
     startTime: z.string(),
     endTime: z.string(),
-    slotDuration: z.number().default(30),
-    isActive: z.boolean().default(true),
+    slotDuration: z.number().int().min(15).max(60),
+    isActive: z.boolean(),
+    disabledSlots: z.array(z.string()).optional(),
   })
 );
 

@@ -140,14 +140,15 @@ model Doctor {
 }
 
 model DoctorSchedule {
-  id           String    @id @default(cuid())
-  doctorId     String
-  dayOfWeek    DayOfWeek
-  startTime    String
-  endTime      String
-  slotDuration Int       @default(30)
-  maxPatients  Int       @default(1)
-  isActive     Boolean   @default(true)
+  id            String    @id @default(cuid())
+  doctorId      String
+  dayOfWeek     DayOfWeek
+  startTime     String
+  endTime       String
+  slotDuration  Int       @default(30)
+  maxPatients   Int       @default(1)
+  isActive      Boolean   @default(true)
+  disabledSlots String?
 
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 

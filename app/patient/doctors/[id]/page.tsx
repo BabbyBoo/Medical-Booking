@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import DoctorProfileClient from "./DoctorProfileClient";
 import type { Metadata } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 interface Props {
   params: { id: string };
@@ -38,5 +40,20 @@ export default async function DoctorProfilePage({ params }: Props) {
 
   if (!doctor) notFound();
 
-  return <DoctorProfileClient doctor={doctor as any} />;
+  const session = await getServerSession(authOptions);
+  let hasActiveAppointment = false;
+  if (session?.user?.patientId) {
+    const activeAppt = await prisma.appointment.findFirst({
+      where: {
+        patientId: session.user.patientId,
+        doctorId: params.id,
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+    if (activeAppt) {
+      hasActiveAppointment = true;
+    }
+  }
+
+  return <DoctorProfileClient doctor={doctor as any} hasActiveAppointment={hasActiveAppointment} />;
 }

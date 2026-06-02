@@ -13,6 +13,7 @@ interface ScheduleItem {
   endTime: string;
   slotDuration: number;
   isActive: boolean;
+  disabledSlots?: string[];
 }
 
 const DAYS_OF_WEEK: DayOfWeek[] = [
@@ -25,18 +26,18 @@ const DAYS_OF_WEEK: DayOfWeek[] = [
   "SUNDAY",
 ];
 
-// Generate 30-minute intervals from 07:00 to 22:00
+// Generate 30-minute intervals from 00:00 to 24:00
 const TIME_OPTIONS: string[] = [];
-for (let h = 7; h <= 22; h++) {
+for (let h = 0; h <= 24; h++) {
   const hStr = h.toString().padStart(2, "0");
   TIME_OPTIONS.push(`${hStr}:00`);
-  if (h < 22) {
+  if (h < 24) {
     TIME_OPTIONS.push(`${hStr}:30`);
   }
 }
 
-const START_TIME_OPTIONS = TIME_OPTIONS.slice(0, -1); // 07:00 to 21:30
-const END_TIME_OPTIONS = TIME_OPTIONS.slice(1); // 07:30 to 22:00
+const START_TIME_OPTIONS = TIME_OPTIONS.slice(0, -1); // 00:00 to 23:30
+const END_TIME_OPTIONS = TIME_OPTIONS.slice(1); // 00:30 to 24:00
 
 const normalizeTime = (timeStr: string | undefined, defaultTime: string): string => {
   if (!timeStr) return defaultTime;
@@ -46,8 +47,8 @@ const normalizeTime = (timeStr: string | undefined, defaultTime: string): string
   if (isNaN(h) || isNaN(m)) return defaultTime;
 
   let totalMinutes = h * 60 + m;
-  if (totalMinutes < 7 * 60) totalMinutes = 7 * 60;
-  if (totalMinutes > 22 * 60) totalMinutes = 22 * 60;
+  if (totalMinutes < 0) totalMinutes = 0;
+  if (totalMinutes > 24 * 60) totalMinutes = 24 * 60;
 
   // Round to nearest 30 minutes
   const roundedMinutes = Math.round(totalMinutes / 30) * 30;
@@ -56,6 +57,24 @@ const normalizeTime = (timeStr: string | undefined, defaultTime: string): string
   const roundedM = roundedMinutes % 60;
   return `${roundedH.toString().padStart(2, "0")}:${roundedM.toString().padStart(2, "0")}`;
 };
+
+function generateClientSlots(startTime: string, endTime: string, duration: number): string[] {
+  const slots: string[] = [];
+  const [startH, startM] = startTime.split(":").map(Number);
+  const [endH, endM] = endTime.split(":").map(Number);
+
+  let currentMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  while (currentMinutes < endMinutes) {
+    const h = Math.floor(currentMinutes / 60);
+    const m = currentMinutes % 60;
+    slots.push(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
+    currentMinutes += duration;
+  }
+
+  return slots;
+}
 
 export default function ScheduleClient({
   doctorId,
@@ -72,12 +91,21 @@ export default function ScheduleClient({
   const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
     return DAYS_OF_WEEK.map((day) => {
       const dbItem = initialSchedules.find((s) => s.dayOfWeek === day);
+      let parsedDisabled: string[] = [];
+      if (dbItem && (dbItem as any).disabledSlots) {
+        try {
+          parsedDisabled = typeof (dbItem as any).disabledSlots === "string"
+            ? JSON.parse((dbItem as any).disabledSlots)
+            : (dbItem as any).disabledSlots;
+        } catch {}
+      }
       return {
         dayOfWeek: day,
         startTime: normalizeTime(dbItem?.startTime, "08:00"),
         endTime: normalizeTime(dbItem?.endTime, "17:00"),
         slotDuration: dbItem?.slotDuration || 30,
         isActive: dbItem ? dbItem.isActive : false,
+        disabledSlots: parsedDisabled,
       };
     });
   });
@@ -103,8 +131,8 @@ export default function ScheduleClient({
           
           if (startMin >= endMin) {
             const nextMin = startMin + 30;
-            const nextH = Math.min(22, Math.floor(nextMin / 60));
-            const nextM = nextH === 22 ? 0 : nextMin % 60;
+            const nextH = Math.min(24, Math.floor(nextMin / 60));
+            const nextM = nextH === 24 ? 0 : nextMin % 60;
             updated.endTime = `${nextH.toString().padStart(2, "0")}:${nextM.toString().padStart(2, "0")}`;
           }
         }
@@ -118,8 +146,8 @@ export default function ScheduleClient({
           
           if (startMin >= endMin) {
             const prevMin = endMin - 30;
-            const prevH = Math.max(7, Math.floor(prevMin / 60));
-            const prevM = prevMin < 7 * 60 ? 0 : prevMin % 60;
+            const prevH = Math.max(0, Math.floor(prevMin / 60));
+            const prevM = prevMin < 0 ? 0 : prevMin % 60;
             updated.startTime = `${prevH.toString().padStart(2, "0")}:${prevM.toString().padStart(2, "0")}`;
           }
         }
@@ -204,86 +232,131 @@ export default function ScheduleClient({
           {schedules.map((schedule, idx) => (
             <div
               key={schedule.dayOfWeek}
-              className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+              className={`p-5 flex flex-col gap-4 transition-colors ${
                 schedule.isActive ? "bg-white" : "bg-slate-50/50"
               }`}
             >
-              {/* Day & Toggle Checkbox */}
-              <div className="flex items-center gap-4 min-w-[200px]">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={schedule.isActive}
-                    onChange={() => handleToggleActive(idx)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
-                </label>
-                <div>
-                  <span className="font-bold text-slate-800 block">
-                    {getDayOfWeekLabel(schedule.dayOfWeek)}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {schedule.isActive ? "Đang nhận bệnh nhân" : "Nghỉ làm việc"}
-                  </span>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Day & Toggle Checkbox */}
+                <div className="flex items-center gap-4 min-w-[200px]">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={schedule.isActive}
+                      onChange={() => handleToggleActive(idx)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                  </label>
+                  <div>
+                    <span className="font-bold text-slate-800 block">
+                      {getDayOfWeekLabel(schedule.dayOfWeek)}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {schedule.isActive ? "Đang nhận bệnh nhân" : "Nghỉ làm việc"}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Time Configuration (Visible if active) */}
+                {schedule.isActive ? (
+                  <div className="flex flex-wrap items-center gap-4 flex-1 justify-start md:justify-end">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm text-slate-600">Bắt đầu:</span>
+                      <select
+                        value={schedule.startTime}
+                        onChange={(e) => handleFieldChange(idx, "startTime", e.target.value)}
+                        className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
+                      >
+                        {START_TIME_OPTIONS.filter((t) => t < schedule.endTime).map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm text-slate-600">Kết thúc:</span>
+                      <select
+                        value={schedule.endTime}
+                        onChange={(e) => handleFieldChange(idx, "endTime", e.target.value)}
+                        className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
+                      >
+                        {END_TIME_OPTIONS.filter((t) => t > schedule.startTime).map((time) => (
+                          <option key={time} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-600">Thời gian khám:</span>
+                      <select
+                        value={schedule.slotDuration}
+                        onChange={(e) =>
+                          handleFieldChange(idx, "slotDuration", parseInt(e.target.value))
+                        }
+                        className="input-field py-1.5 px-3 max-w-[140px] text-sm"
+                      >
+                        <option value={15}>15 phút</option>
+                        <option value={20}>20 phút</option>
+                        <option value={30}>30 phút</option>
+                        <option value={45}>45 phút</option>
+                        <option value={60}>60 phút</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-400 italic flex-1 text-left md:text-right">
+                    Nghỉ ngơi / Lịch nghỉ định kỳ
+                  </div>
+                )}
               </div>
 
-              {/* Time Configuration (Visible if active) */}
-              {schedule.isActive ? (
-                <div className="flex flex-wrap items-center gap-4 flex-1 justify-start md:justify-end">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm text-slate-600">Bắt đầu:</span>
-                    <select
-                      value={schedule.startTime}
-                      onChange={(e) => handleFieldChange(idx, "startTime", e.target.value)}
-                      className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
-                    >
-                      {START_TIME_OPTIONS.filter((t) => t < schedule.endTime).map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
+              {/* Slots Grid for selecting disabled slots */}
+              {schedule.isActive && (
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-semibold text-slate-500 mb-3">
+                    Nhấp vào khung giờ để bật/tắt nhận bệnh (Giờ xám là giờ nghỉ, ví dụ nghỉ trưa):
+                  </p>
+                  <div className="slot-grid">
+                    {generateClientSlots(schedule.startTime, schedule.endTime, schedule.slotDuration).map((time) => {
+                      const isDisabled = schedule.disabledSlots?.includes(time);
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => {
+                            setSchedules((prev) =>
+                              prev.map((item, idxDay) => {
+                                if (idxDay !== idx) return item;
+                                const currentDisabled = item.disabledSlots || [];
+                                const updatedDisabled = currentDisabled.includes(time)
+                                  ? currentDisabled.filter((t) => t !== time)
+                                  : [...currentDisabled, time];
+                                return { ...item, disabledSlots: updatedDisabled };
+                              })
+                            );
+                          }}
+                          className={`slot-btn flex flex-col items-center justify-center py-2 px-1 text-xs font-semibold rounded-xl transition-all ${
+                            isDisabled ? "booked" : "available"
+                          }`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <span>{time}</span>
+                          {isDisabled ? (
+                            <span className="text-[10px] text-rose-500 font-semibold mt-0.5">Không nhận</span>
+                          ) : (
+                            <span className="text-[10px] text-cyan-600 font-semibold mt-0.5">Nhận</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm text-slate-600">Kết thúc:</span>
-                    <select
-                      value={schedule.endTime}
-                      onChange={(e) => handleFieldChange(idx, "endTime", e.target.value)}
-                      className="input-field py-1.5 px-3 max-w-[120px] text-sm bg-white cursor-pointer"
-                    >
-                      {END_TIME_OPTIONS.filter((t) => t > schedule.startTime).map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-600">Thời gian khám:</span>
-                    <select
-                      value={schedule.slotDuration}
-                      onChange={(e) =>
-                        handleFieldChange(idx, "slotDuration", parseInt(e.target.value))
-                      }
-                      className="input-field py-1.5 px-3 max-w-[140px] text-sm"
-                    >
-                      <option value={15}>15 phút</option>
-                      <option value={20}>20 phút</option>
-                      <option value={30}>30 phút</option>
-                      <option value={45}>45 phút</option>
-                      <option value={60}>60 phút</option>
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-slate-400 italic flex-1 text-left md:text-right">
-                  Nghỉ ngơi / Lịch nghỉ định kỳ
                 </div>
               )}
             </div>

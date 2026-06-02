@@ -24,7 +24,7 @@ Dự án được xây dựng trên mô hình phân quyền chặt chẽ với *
 
 ### 👑 3. Phân hệ Quản trị viên (Admin Portal)
 * **Quản trị người dùng:** Tìm kiếm, Khóa/Mở khóa tài khoản ngay lập tức. Tính năng bảo mật ngăn chặn thay đổi vai trò (role) tùy ý để giữ đồng bộ dữ liệu.
-* **Quản lý Bác sĩ & Chuyên khoa:** CRUD chuyên khoa khám bệnh (tên, mô tả, emoji icon). Xác minh (Verify) bác sĩ và tạo tài khoản bác sĩ mới (tự động điền email đuôi `@medbook.com`).
+* **Quản lý Bác sĩ & Chuyên khoa:** CRUD chuyên khoa khám bệnh (tên, mô tả, emoji icon). Xác minh (Verify) bác sĩ và tạo tài khoản bác sĩ mới (tự động điền email đuôi `@medbook.vn`).
 * **Hủy lịch khẩn cấp (Force Cancel):** Bắt buộc hủy lịch hẹn kèm lý do và tự động hoàn tiền đối với các lịch đã thanh toán trực tuyến.
 * **Báo cáo & Thống kê thông minh:** Trực quan hóa số liệu doanh thu, lượt khám, và tỷ lệ lịch hẹn thông qua biểu đồ Recharts sinh động. Xuất báo cáo dữ liệu ra file CSV chuẩn UTF-8 hỗ trợ tiếng Việt.
 

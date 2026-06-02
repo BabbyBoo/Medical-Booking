@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     let finalEmail = email.trim();
     if (!finalEmail.includes("@")) {
-      finalEmail = `${finalEmail}@medbook.com`;
+      finalEmail = `${finalEmail}@medbook.vn`;
     }
 
     // Check duplicate email

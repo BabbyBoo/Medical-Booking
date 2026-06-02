@@ -96,6 +96,7 @@ CREATE TABLE "doctor_schedules" (
     "slotDuration" INTEGER NOT NULL DEFAULT 30,
     "maxPatients" INTEGER NOT NULL DEFAULT 1,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "disabledSlots" TEXT,
 
     CONSTRAINT "doctor_schedules_pkey" PRIMARY KEY ("id")
 );

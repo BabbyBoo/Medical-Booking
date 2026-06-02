@@ -59,10 +59,25 @@ export async function GET(
 
     const bookedSlots = new Set(bookedAppointments.map((a) => a.slotTime));
 
-    const slots = allSlots.map((time) => ({
-      time,
-      available: !bookedSlots.has(time),
-    }));
+    const disabledSlotsSet = new Set<string>();
+    if (schedule.disabledSlots) {
+      try {
+        const parsed = JSON.parse(schedule.disabledSlots) as string[];
+        parsed.forEach((t) => disabledSlotsSet.add(t));
+      } catch (err) {
+        console.error("Parse disabledSlots error:", err);
+      }
+    }
+
+    const slots = allSlots.map((time) => {
+      const slotDateTime = new Date(`${dateStr}T${time}:00+07:00`);
+      const isPast = slotDateTime < new Date();
+      const isDisabled = disabledSlotsSet.has(time);
+      return {
+        time,
+        available: !bookedSlots.has(time) && !isPast && !isDisabled,
+      };
+    });
 
     return apiResponse(true, { slots, schedule });
   } catch (error) {

@@ -309,7 +309,7 @@ export default function AppointmentDetailClient({ appointment, currentRole, curr
         {/* Re-book */}
         {(appointment.status === "COMPLETED" || appointment.status === "NO_SHOW") && (
           <Link
-            href={`/patient/appointments/book/${appointment.doctor.id}`}
+            href={`/patient/appointments/book/${appointment.doctor.id}?previousAppointmentId=${appointment.id}`}
             className="card p-4 flex items-center gap-3 hover:border-cyan-200 transition-colors"
           >
             <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">

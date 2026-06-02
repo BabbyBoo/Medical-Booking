@@ -45,14 +45,33 @@ export async function POST(
 
     const transactionId = "TXN" + Date.now();
 
-    await prisma.payment.update({
-      where: { appointmentId: params.appointmentId },
-      data: {
-        status: "PAID",
-        paidAt: new Date(),
-        method: "MOCK_ONLINE",
-        transactionId,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { appointmentId: params.appointmentId },
+        data: {
+          status: "PAID",
+          paidAt: new Date(),
+          method: "MOCK_ONLINE",
+          transactionId,
+        },
+      });
+
+      // Get doctor user ID to notify them
+      const doctor = await tx.doctor.findUnique({
+        where: { id: appointment.doctorId },
+        include: { user: { select: { id: true } } },
+      });
+
+      if (doctor) {
+        await tx.notification.create({
+          data: {
+            userId: doctor.user.id,
+            title: "Lịch hẹn đã được thanh toán 💰",
+            message: `Lịch khám lúc ${appointment.slotTime} ngày ${appointment.appointmentDate.toLocaleDateString("vi-VN")} của bệnh nhân ${session.user.name} đã được thanh toán thành công.`,
+            type: "PAYMENT",
+          },
+        });
+      }
     });
 
     return apiResponse(
